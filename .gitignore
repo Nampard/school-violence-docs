@@ -1,0 +1,19 @@
+# 실제 사안 파일 및 개인정보 포함 가능 폴더
+documents/
+output/
+
+# Claude 메모리 (로컬 전용)
+.claude/
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Python 캐시
+__pycache__/
+*.pyc
+*.pyo
+
+# 임시 파일
+*.tmp
+/tmp/
