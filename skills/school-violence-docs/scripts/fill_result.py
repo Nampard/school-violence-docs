@@ -17,6 +17,7 @@ data.json:
   "오인신고항목": 1                  # mode=종결일 때만: 1|2|3 (학폭아님 종결 사유 항목)
 }
 분기: 자체해결이면 '학교폭력 자체해결 사안 (O)', 종결이면 '학교폭력이 아닌 사안 종결 (O)'+해당 항목 O.
+※ 학생이 5명 이상이면 학생 블록(헤더+데이터)을 자동 복제해 전원 채움(하위 고정행은 자동 이동).
 """
 import sys, json
 import hwpx_lib as H
@@ -27,8 +28,17 @@ def main(template, data_path, out_path):
     t = H.tables(root)[0]
     rows = t.findall(H.q('tr'))
 
-    # 학생 데이터행 = 1,3,5,7 (각 tc[0..3]=소속학교/학년반번호/학생이름/보호자이름)
-    for i, st in enumerate(d.get("학생", [])[:4]):
+    # 학생 1명 = 2행 묶음(헤더+데이터). 기본 4명(블록 0~3 = tr 0/1, 2/3, 4/5, 6/7).
+    # 4명 초과 시 마지막 블록(rows[6],rows[7])을 복제해 표를 늘린다 → 하위 고정행은 off만큼 밀린다.
+    students = d.get("학생", [])
+    extra = max(0, len(students) - 4)
+    if extra:
+        H.clone_block_after(t, [rows[6], rows[7]], rows[7], extra)
+        rows = t.findall(H.q('tr'))
+    off = 2 * extra
+
+    # 학생 데이터행 = 1,3,5,7,(9,11,…) (각 tc[0..3]=소속학교/학년반번호/학생이름/보호자이름)
+    for i, st in enumerate(students):
         dr = rows[1 + i * 2].findall(H.q('tc'))
         H.set_cell(dr[0], st.get("학교", ""))
         H.set_cell(dr[1], st.get("학년반번호", ""))
@@ -36,19 +46,19 @@ def main(template, data_path, out_path):
         H.set_cell(dr[3], st.get("보호자", ""))
 
     if d.get("사안조사내용"):
-        H.set_cell(rows[8].findall(H.q('tc'))[1], d["사안조사내용"])
+        H.set_cell(rows[8 + off].findall(H.q('tc'))[1], d["사안조사내용"])
 
     mode = d.get("mode", "자체해결")
     if mode == "자체해결":
-        H.check_paren(rows[13].findall(H.q('tc'))[0])
-        H.set_cell(rows[13].findall(H.q('tc'))[1], "O — 자체해결 요건 충족 및 피해측 동의")
+        H.check_paren(rows[13 + off].findall(H.q('tc'))[0])
+        H.set_cell(rows[13 + off].findall(H.q('tc'))[1], "O — 자체해결 요건 충족 및 피해측 동의")
     else:  # 종결(학폭 아님)
-        H.check_paren(rows[9].findall(H.q('tc'))[1])
+        H.check_paren(rows[9 + off].findall(H.q('tc'))[1])
         item = int(d.get("오인신고항목", 1))   # 항목1→row10, 2→row11, 3→row12
-        H.set_cell(rows[9 + item].findall(H.q('tc'))[1], "O")
+        H.set_cell(rows[9 + off + item].findall(H.q('tc'))[1], "O")
 
     if d.get("관계회복"):
-        H.set_cell(rows[15].findall(H.q('tc'))[1], d["관계회복"])
+        H.set_cell(rows[15 + off].findall(H.q('tc'))[1], d["관계회복"])
 
     repls = []
     if d.get("사안번호"):

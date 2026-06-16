@@ -9,7 +9,7 @@ hwpx_lib — 한글 hwpx 서식의 표 셀·체크박스를 셀 주소 기반으
 - hwpx는 zip이며 mimetype이 맨 앞·무압축(STORED)이어야 한글이 연다. save()가 이를 보장한다.
 """
 from lxml import etree
-import zipfile, os, shutil, tempfile, re
+import zipfile, os, shutil, tempfile, re, copy
 
 HP = "http://www.hancom.co.kr/hwpml/2011/paragraph"
 def q(tag): return f"{{{HP}}}{tag}"
@@ -72,6 +72,48 @@ def check_paren(tc):
             t.text = re.sub(r"\(\s+\)", "( O )", t.text, count=1)
             return True
     return False
+
+
+def renumber_rows(table):
+    """표의 모든 tc.cellAddr.rowAddr를 자신이 속한 tr의 순번으로 다시 매기고 rowCnt를 갱신한다.
+    행을 추가/삭제한 뒤 호출한다. 이 양식들은 rowAddr == tr 순번이고 rowSpan은 셀 속성으로
+    별도 유지되므로(세로 병합) 이 재번호가 안전하다."""
+    trs = table.findall(q("tr"))
+    for i, tr in enumerate(trs):
+        for ca in tr.findall(f"{q('tc')}/{q('cellAddr')}"):
+            ca.set("rowAddr", str(i))
+    table.set("rowCnt", str(len(trs)))
+    return trs
+
+
+def extend_rowspan_label(table, label_text, delta):
+    """table 안에서 텍스트가 label_text이고 세로병합(rowSpan>1)된 라벨 셀의 rowSpan을 delta만큼 늘린다.
+    사안접수 '관련학생'처럼 하나의 라벨이 여러 학생 데이터행을 세로로 덮는 경우, 행을 추가하면
+    그 병합도 새 행까지 확장해야 빈 칸이 생기지 않는다."""
+    for tc in table.findall(f"{q('tr')}/{q('tc')}"):
+        span = tc.find(q("cellSpan"))
+        if span is None or int(span.get("rowSpan", "1")) <= 1:
+            continue
+        txt = "".join((t.text or "") for t in tc.findall(f".//{q('t')}")).strip()
+        if txt == label_text:
+            span.set("rowSpan", str(int(span.get("rowSpan")) + delta))
+            return True
+    return False
+
+
+def clone_block_after(table, block_trs, anchor_tr, times):
+    """block_trs(연속된 tr 묶음 = 학생 1명분 행)를 times번 복제해 anchor_tr 바로 뒤에 삽입한다.
+    복제는 채우기 전(빈 템플릿 상태)에 해야 한다. 삽입 후 renumber_rows로 주소를 정리한다.
+    반환: 새로 삽입된 tr들의 평탄 리스트."""
+    ref, new_trs = anchor_tr, []
+    for _ in range(times):
+        for tr in block_trs:
+            clone = copy.deepcopy(tr)
+            ref.addnext(clone)
+            ref = clone
+            new_trs.append(clone)
+    renumber_rows(table)
+    return new_trs
 
 
 def cell_by_addr(table, row, col):

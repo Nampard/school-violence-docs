@@ -14,6 +14,8 @@ data.json (모르는 값은 키 생략 또는 "" → 빈칸 유지):
   "학교약칭": "○○고",                 # (선택) 사안번호용 약칭. 없으면 'OO고' 유지
   "교감": "", "교감전화": "",         # (선택) 학교 고유 교직원 — 없으면 빈칸
   "담당자": "", "담당전화": "", "접수자": "",  # (선택) 예 "홍길동(학교폭력담당교사)"
+  "가해학생2호조치": "미시행",         # (선택) 제2호(접촉·협박·보복 금지) 긴급조치 시행 여부.
+                                      #        예 "2026.6.12. 시행" / "미시행". 없으면 빈칸
   "사실확인": {"관련학생": "...", "일시": "...", "장소": "", "내용": "...",
               "유형": "기타(성희롱)"},   # 유형: 체크할 항목 키워드. '성폭력' 등은 신중히(법적효과)
   "학생": [
@@ -24,6 +26,7 @@ data.json (모르는 값은 키 생략 또는 "" → 빈칸 유지):
   ]
 }
 유형 키워드→체크박스 매핑은 references/field-maps.md 참조.
+※ 학생이 5명 이상이면 양식 학생행을 자동 복제해 전원 채움(별지 불필요).
 """
 import sys, json
 import hwpx_lib as H
@@ -54,11 +57,23 @@ def main(template, data_path, out_path):
     if d.get("담당자"):   H.set_cell(H.cell_by_addr(main_t, 1, 14), d["담당자"])
     if d.get("담당전화"): H.set_cell(H.cell_by_addr(main_t, 2, 14), d["담당전화"])
     if d.get("접수자"):   H.set_cell(H.cell_by_addr(main_t, 5, 1), d["접수자"])
+    # 가해학생 제2호 조치(접촉·협박·보복 금지 긴급조치) 시행 여부 — 자유기입, 없으면 빈칸
+    if d.get("가해학생2호조치"): H.set_cell(H.cell_by_addr(main_t, 7, 1), d["가해학생2호조치"])
 
     # 관련학생 그리드 (가해관련+탈북학생 포함 tr = 학생행). 위치순 tc[0..5]
-    srows = [tr for tr in main_t.findall(H.q('tr'))
-             if "가해관련" in "".join(tr.itertext()) and "탈북학생" in "".join(tr.itertext())]
-    for tr, st in zip(srows, d.get("학생", [])):
+    def find_srows():
+        return [tr for tr in main_t.findall(H.q('tr'))
+                if "가해관련" in "".join(tr.itertext()) and "탈북학생" in "".join(tr.itertext())]
+    srows = find_srows()
+    students = d.get("학생", [])
+    # 학생이 양식 칸(기본 4명)을 넘으면 마지막 학생행을 복제해 표를 늘린다(전원 한 문서에 정식 서식으로).
+    if srows and len(students) > len(srows):
+        added = len(students) - len(srows)
+        H.clone_block_after(main_t, [srows[-1]], srows[-1], added)
+        # '관련학생' 세로병합 라벨이 새 행까지 덮도록 rowSpan 확장(안 하면 새 행 앞에 빈 칸 발생)
+        H.extend_rowspan_label(main_t, "관련학생", added)
+        srows = find_srows()
+    for tr, st in zip(srows, students):
         tcs = tr.findall(H.q('tc'))
         H.set_cell(tcs[0], st.get("학교", ""))
         H.set_cell(tcs[1], st.get("학번", ""))
