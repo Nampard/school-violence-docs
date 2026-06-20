@@ -51,6 +51,7 @@ def main(template, data_path, out_path):
 
     body = H.replace_text(tree, repls).decode("utf-8")
     body = H.apply_school(body, d)
+    body = H.reflow_paragraphs(body)   # 캐시된 줄 레이아웃 제거 → 글자 겹침 방지
     H.write_section(sec, body.encode("utf-8"))
     H.save(workdir, template, out_path)
     print("saved", out_path)

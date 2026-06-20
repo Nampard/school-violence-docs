@@ -148,6 +148,28 @@ def apply_school(body, d):
     return body
 
 
+def reflow_paragraphs(body):
+    """채운 문단의 캐시된 줄 레이아웃(<hp:linesegarray>)을 제거해, 한글이 파일을 열 때 줄 위치를
+    스스로 다시 계산(reflow)하게 한다 → '글자 겹침' 해소.
+
+    왜 필요한가: 빈 셀 문단에는 vertpos=0짜리 lineseg가 딱 1개 들어 있다(1줄 기준 캐시).
+    set_cell/치환으로 긴 글자를 넣어도 이 캐시는 1줄 그대로라, 자동 줄바꿈된 2번째 줄 이후가
+    모두 vertpos=0(같은 높이)에 겹쳐 그려진다. 캐시를 지우면 한글이 칸 너비·폰트에 맞춰
+    줄마다 올바른 lineseg를 새로 만든다(칸 너비가 달라도 자동 처리 — 40자 고정 줄바꿈보다 견고).
+
+    텍스트가 있는 문단만 처리한다(빈 문단·라벨도 지워도 무해하나 보수적으로 둠). body는 str(선언 없음).
+    한글은 linesegarray가 없으면 렌더 자체가 불가하므로 열 때 반드시 재계산한다."""
+    root = etree.fromstring(body.encode("utf-8"))
+    for p in root.iter(q("p")):
+        txt = "".join(t.text or "" for t in p.findall(f".//{q('t')}"))
+        if not txt.strip():
+            continue
+        lsa = p.find(q("linesegarray"))
+        if lsa is not None:
+            p.remove(lsa)
+    return etree.tostring(root, encoding="UTF-8").decode("utf-8")
+
+
 def write_section(sec_path, tree_or_bytes):
     """section0.xml을 원본 선언과 함께 기록."""
     if isinstance(tree_or_bytes, (bytes, bytearray)):
