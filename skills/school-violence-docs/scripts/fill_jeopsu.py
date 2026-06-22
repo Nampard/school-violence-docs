@@ -14,6 +14,8 @@ data.json (모르는 값은 키 생략 또는 "" → 빈칸 유지):
   "학교약칭": "○○고",                 # (선택) 사안번호용 약칭. 없으면 'OO고' 유지
   "교감": "", "교감전화": "",         # (선택) 학교 고유 교직원 — 없으면 빈칸
   "담당자": "", "담당전화": "", "접수자": "",  # (선택) 예 "홍길동(학교폭력담당교사)"
+  "가해학생2호조치": "",              # (선택) 제2호 조치(접촉·협박·보복 금지) 시행 여부 자유기입
+  "즉시분리": {"여부": "미시행", "사유항목": 2},  # (선택) 시행 시 {"여부":"시행","기간":"7"}. 미언급이면 빈칸
   "가해학생2호조치": "미시행",         # (선택) 제2호(접촉·협박·보복 금지) 긴급조치 시행 여부.
                                       #        예 "2026.6.12. 시행" / "미시행". 없으면 빈칸
   "사실확인": {"관련학생": "...", "일시": "...", "장소": "", "내용": "...",
@@ -28,7 +30,7 @@ data.json (모르는 값은 키 생략 또는 "" → 빈칸 유지):
 유형 키워드→체크박스 매핑은 references/field-maps.md 참조.
 ※ 학생이 5명 이상이면 양식 학생행을 자동 복제해 전원 채움(별지 불필요).
 """
-import sys, json
+import sys, json, re
 import hwpx_lib as H
 
 TYPE_BOX = {  # 유형 입력 키워드 → 양식의 □유형 라벨
@@ -60,6 +62,38 @@ def main(template, data_path, out_path):
     # 가해학생 제2호 조치(접촉·협박·보복 금지 긴급조치) 시행 여부 — 자유기입, 없으면 빈칸
     if d.get("가해학생2호조치"): H.set_cell(H.cell_by_addr(main_t, 7, 1), d["가해학생2호조치"])
 
+    # 피·가해학생 즉시분리 여부 — {"여부":"시행","기간":"7"} 또는 {"여부":"미시행","사유항목":2}
+    # 미언급(키 없음)이면 건드리지 않아 빈칸. 시행=분리기간 기입, 미시행=사유[ ]→[○] 체크로 표시.
+    bunri = d.get("즉시분리")
+    if isinstance(bunri, dict) and bunri.get("여부"):
+        if bunri["여부"] == "시행":
+            c = H.cell_by_addr(main_t, 9, 1)                    # '시행' 셀에 표시
+            for r in (H.runs_of(c) if c is not None else []):
+                t = r.find(H.q("t"))
+                if t is not None and (t.text or "").strip() == "시행":
+                    t.text = "■ 시행"; break
+            if bunri.get("기간"):                               # 분리기간: ( N )일
+                c2 = H.cell_by_addr(main_t, 10, 1)
+                for r in (H.runs_of(c2) if c2 is not None else []):
+                    t = r.find(H.q("t"))
+                    if t is not None and t.text and re.search(r"\(\s+\)", t.text):
+                        t.text = re.sub(r"\(\s+\)", f"( {bunri['기간']} )", t.text, count=1); break
+        elif bunri["여부"] == "미시행":
+            c = H.cell_by_addr(main_t, 9, 7)                    # '미시행(...)' 셀에 표시
+            for r in (H.runs_of(c) if c is not None else []):
+                t = r.find(H.q("t"))
+                if t is not None and t.text and t.text.startswith("미시행"):
+                    t.text = "■ " + t.text; break
+            item = bunri.get("사유항목")                         # 1~5 사유 [   ]→[○]
+            if item:
+                c2 = H.cell_by_addr(main_t, 10, 7)
+                brackets = [r.find(H.q("t")) for r in (H.runs_of(c2) if c2 is not None else [])
+                            if r.find(H.q("t")) is not None and r.find(H.q("t")).text
+                            and re.search(r"\[\s+\]", r.find(H.q("t")).text)]
+                if 1 <= int(item) <= len(brackets):
+                    bt = brackets[int(item) - 1]
+                    bt.text = re.sub(r"\[\s+\]", "[○]", bt.text, count=1)
+
     # 관련학생 그리드 (가해관련+탈북학생 포함 tr = 학생행). 위치순 tc[0..5]
     def find_srows():
         return [tr for tr in main_t.findall(H.q('tr'))
@@ -79,6 +113,7 @@ def main(template, data_path, out_path):
         H.set_cell(tcs[1], st.get("학번", ""))
         H.set_cell(tcs[2], st.get("성명", ""))
         H.set_cell(tcs[3], st.get("성별", ""))
+        H.set_cell(tcs[4], st.get("보호자통보", ""))   # 보호자 통보여부(예: '통보 2026.6.22. 10:00 유선')
         for lab in st.get("비고", []):
             H.check_box(tcs[5], lab)
 
@@ -89,14 +124,18 @@ def main(template, data_path, out_path):
     for i, key in keymap.items():
         if sc.get(key):
             H.set_cell(nrows[i].findall(H.q('tc'))[1], sc[key])
-    # 유형 체크
-    if sc.get("유형"):
-        box = TYPE_BOX.get(sc["유형"].split("(")[0].strip())
-        suffix = ""
-        if "(" in sc["유형"]:  # 예: '기타(성희롱)' → ■기타(성희롱)
-            suffix = sc["유형"][sc["유형"].index("("):]
-        if box:
-            for r in H.runs_of(nrows[4].findall(H.q('tc'))[1]):
+    # 유형 체크 — 단일 문자열 또는 리스트 허용(쌍방·복합 유형, 예: ["폭행","언어폭력"])
+    types = sc.get("유형")
+    if types:
+        if isinstance(types, str):
+            types = [types]
+        type_cell = nrows[4].findall(H.q('tc'))[1]
+        for ty in types:
+            box = TYPE_BOX.get(ty.split("(")[0].strip())
+            if not box:
+                continue
+            suffix = ty[ty.index("("):] if "(" in ty else ""  # 예: '기타(성희롱)' → ■기타(성희롱)
+            for r in H.runs_of(type_cell):
                 t = r.find(H.q("t"))
                 if t is not None and t.text and box in t.text:
                     t.text = t.text.replace(box, "■" + box[1:] + suffix, 1)
