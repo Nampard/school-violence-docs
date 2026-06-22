@@ -141,6 +141,10 @@ def main(template, data_path, out_path):
                     t.text = t.text.replace(box, "■" + box[1:] + suffix, 1)
                     break
 
+    # 분량 안전망: 사실확인 '내용'은 최소 500자 권장 — 미만이면 경고(사실관계 보강 후속질문 신호)
+    if sc.get("내용") and len(sc["내용"]) < 500:
+        print(f"⚠️ 사실확인 '내용'이 {len(sc['내용'])}자로 500자 미만 — 사실관계를 더 확인해 보강 권장(억지 분량 채우기 금지)")
+
     # 사안번호 + 학교명/약칭 (직렬화 후 치환)
     repls = []
     if d.get("사안번호"):

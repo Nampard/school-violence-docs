@@ -64,6 +64,10 @@ def main(template, data_path, out_path):
     if d.get("사안번호"):
         yr = str(d.get("사안연도", "2026"))   # 사안번호 연도(기본 2026). 작년 이월 사안 등은 "2025" 지정
         repls.append(("-2026-  호", f"-{yr}-{d['사안번호']}호"))
+    # 분량 안전망: '사안조사내용'은 최소 500자 권장
+    if d.get("사안조사내용") and len(d["사안조사내용"]) < 500:
+        print(f"⚠️ '사안조사내용'이 {len(d['사안조사내용'])}자로 500자 미만 — 사실관계를 더 확인해 보강 권장")
+
     body = H.replace_text(tree, repls).decode("utf-8")
     body = H.apply_school(body, d)
     body = H.reflow_paragraphs(body)   # 캐시된 줄 레이아웃 제거 → 글자 겹침 방지

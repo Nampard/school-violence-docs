@@ -50,6 +50,10 @@ def main(template, data_path, out_path):
     if d.get("결정"):
         repls.append(("<hp:t> • </hp:t>", f"<hp:t> • {esc(d['결정'])}</hp:t>"))
 
+    # 분량 안전망: '조사내용'은 최소 500자 권장(결정사항은 예외라 제외)
+    if d.get("조사내용") and len(d["조사내용"]) < 500:
+        print(f"⚠️ '조사내용'이 {len(d['조사내용'])}자로 500자 미만 — 사실관계를 더 확인해 보강 권장")
+
     body = H.replace_text(tree, repls).decode("utf-8")
     body = H.apply_school(body, d)
     body = H.reflow_paragraphs(body)   # 캐시된 줄 레이아웃 제거 → 글자 겹침 방지
