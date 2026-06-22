@@ -38,8 +38,9 @@ def main(template, data_path, out_path):
 
     repls = []
     if d.get("사안번호"):
-        repls.append(("2026- 호", f"2026-{d['사안번호']}호"))
-        repls.append(("2026-0  호", f"2026-{int(d['사안번호']):02d}호"))
+        yr = str(d.get("사안연도", "2026"))   # 사안번호 연도(기본 2026). 작년 이월 사안 등은 "2025" 지정
+        repls.append(("2026- 호", f"{yr}-{d['사안번호']}호"))
+        repls.append(("2026-0  호", f"{yr}-{int(d['사안번호']):02d}호"))
     if d.get("일시"):
         repls.append(("2026년   월   일 (  요일)", esc(d["일시"])))
     if d.get("참석자"):

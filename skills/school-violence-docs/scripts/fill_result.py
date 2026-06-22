@@ -62,7 +62,8 @@ def main(template, data_path, out_path):
 
     repls = []
     if d.get("사안번호"):
-        repls.append(("-2026-  호", f"-2026-{d['사안번호']}호"))
+        yr = str(d.get("사안연도", "2026"))   # 사안번호 연도(기본 2026). 작년 이월 사안 등은 "2025" 지정
+        repls.append(("-2026-  호", f"-{yr}-{d['사안번호']}호"))
     body = H.replace_text(tree, repls).decode("utf-8")
     body = H.apply_school(body, d)
     body = H.reflow_paragraphs(body)   # 캐시된 줄 레이아웃 제거 → 글자 겹침 방지
