@@ -33,6 +33,8 @@ python3 <필러> <빈양식.hwpx> <data.json> <출력.hwpx>
 | 사안접수 보고서 | `fill_jeopsu.py` | `../assets/templates/사안접수_빈양식.hwpx` |
 | 전담기구 심의결과 보고서 | `fill_jeondamgigu.py` | `../assets/templates/전담기구심의_빈양식.hwpx` |
 | 자체해결·종결 결과 보고서(통합) | `fill_result.py` | `../assets/templates/자체해결종결_빈양식.hwpx` |
+| 자체해결 동의서(피해측 서명) | `fill_donguiseo.py` (종류:"자체해결") | `../assets/templates/자체해결동의서_빈양식.hwpx` |
+| 종결 동의서(피해측 서명) | `fill_donguiseo.py` (종류:"종결") | `../assets/templates/종결동의서_빈양식.hwpx` |
 
 > 스크립트는 `hwpx_lib.py`를 import하므로 **`scripts/` 폴더 안에서 실행**하거나 `PYTHONPATH`에 포함해야 한다.
 
@@ -132,6 +134,28 @@ python3 fill_jeondamgigu.py ../assets/templates/전담기구심의_빈양식.hwp
 python3 fill_result.py ../assets/templates/자체해결종결_빈양식.hwpx data.json 결과_출력.hwpx
 ```
 
+### 3-4. 자체해결/종결 동의서 (`fill_donguiseo.py`) — 피해측 서명 문서
+
+```json
+{
+  "종류": "자체해결",
+  "사안번호": "5", "사안연도": "2025",
+  "학교명": "○○고등학교", "학교약칭": "○○고",
+  "사안내용": "… 사실은 따르되 완곡·객관적 표현으로 500자 내외(자극적 묘사 금지) …",
+  "학생": [
+    {"소속학교": "○○고등학교", "학년반": "1-3", "성명": "홍길동"}
+  ]
+}
+```
+- `종류`: `"자체해결"`(학생 2칸) 또는 `"종결"`(3칸). 피해관련 학생을 넣는다(개인별 작성이 원칙).
+- **사안내용은 완곡 500자 내외** — 피해 학생·보호자가 읽고 서명하는 문서다. 보고서의 '최소 500자'와 다름.
+- ⚠️ kordoc `fill_form`은 이 양식의 한글을 손상시키므로(예 "다툼이"→"다투이") **쓰지 말고** 이 스크립트를 쓴다.
+
+```bash
+python3 fill_donguiseo.py ../assets/templates/자체해결동의서_빈양식.hwpx data.json 자체해결동의서_출력.hwpx
+python3 fill_donguiseo.py ../assets/templates/종결동의서_빈양식.hwpx     data.json 종결동의서_출력.hwpx
+```
+
 ---
 
 ## 4. 분기 한눈에 (흐름 ②: 사안조사 보고서 이후)
@@ -140,8 +164,8 @@ python3 fill_result.py ../assets/templates/자체해결종결_빈양식.hwpx dat
 
 | 분기 | 조건 | 생성물 |
 |---|---|---|
-| 자체해결 | 4요건 모두 O **그리고** 피해측 동의 O | 전담기구 보고 + 자체해결 결과(`mode:자체해결`) |
-| 종결 | 학교폭력 아님(오인신고 등) | 전담기구 보고 + 종결 결과(`mode:종결`) |
+| 자체해결 | 4요건 모두 O **그리고** 피해측 동의 O | 전담기구 보고 + 자체해결 결과(`mode:자체해결`) + 자체해결 동의서 |
+| 종결 | 학교폭력 아님(오인신고 등) | 전담기구 보고 + 종결 결과(`mode:종결`) + 종결 동의서 |
 | 심의위 이송 | 4요건 중 X **또는** 동의 미제출 | 전담기구 보고만(결정사항에 이송 기재) |
 
 > 공동학폭(타학교 연루)이면 전담기구는 학교마다 각자 운영 → 우리 학교 기준(일시·참석자)으로 작성.
