@@ -50,6 +50,18 @@ def set_cell(tc, text):
     return True
 
 
+def clear_cell(tc):
+    """셀을 강제로 비운다. set_cell은 빈 값이면 건드리지 않으므로(빈칸 원칙), 양식에 박힌
+    예시 데이터를 지워야 할 때 쓴다. 예시가 남은 채 제출되는 사고를 막는 용도."""
+    run = first_run(tc)
+    if run is None:
+        return False
+    for t in run.findall(q("t")):
+        run.remove(t)
+    etree.SubElement(run, q("t")).text = ""
+    return True
+
+
 def check_box(tc, label):
     """셀 안에서 label run 다음의 '□'를 '■'로 1회 바꾼다(예: '가해관련' → 다음 칸의 □→■)."""
     rs = runs_of(tc)
@@ -146,6 +158,68 @@ def apply_school(body, d):
     if d.get("학교약칭"):
         body = re.sub(r"OO고(?!등학교)", d["학교약칭"], body)
     return body
+
+
+def para_text(p):
+    """문단(hp:p)의 텍스트를 추출한다. hp:t 안의 <hp:lineBreak/>는 '\\n'으로 바꾼다.
+
+    왜 필요한가: 한 문단이 여러 줄일 때 hwpx는 <hp:t>앞줄<hp:lineBreak/>뒷줄</hp:t> 형태로 담는다.
+    이때 lxml의 t.text는 '앞줄'만 주고 '뒷줄'은 lineBreak.tail에 있어, t.text만 읽으면 조용히 누락된다.
+    (공문서식의 '가./나.' 관련 기안번호, 붙임 2·3항이 이 형태였다.)
+
+    문단 안에 표(hp:tbl)가 들어 있으면 그 표 안의 글자는 제외한다. 표는 셀 단위로 따로 다뤄야 하고,
+    문단 텍스트로 긁어오면 표가 통째로 한 줄처럼 보여 통짜 교체 시 표가 뭉개진다."""
+    out = []
+    for t in p.findall(f".//{q('t')}"):
+        anc, in_tbl = t.getparent(), False
+        while anc is not None and anc is not p:
+            if anc.tag == q("tbl"):
+                in_tbl = True
+                break
+            anc = anc.getparent()
+        if in_tbl:
+            continue
+        if t.text:
+            out.append(t.text)
+        for c in t:
+            if etree.QName(c).localname == "lineBreak":
+                out.append("\n")
+            if c.tail:
+                out.append(c.tail)
+    return "".join(out)
+
+
+def set_para_text(p, text):
+    """문단을 text로 교체한다('\\n'은 <hp:lineBreak/>로 복원). 첫 run만 남기고 거기에 몰아넣는다.
+
+    문단이 여러 run으로 잘게 쪼개진 경우(예: '20|○|○. 학교폭력(...')엔 run 경계를 넘는 치환이
+    불가능하므로, 문단 단위로 통째 교체하는 이 방식이 안전하다. 서식은 실질 텍스트를 가진
+    run의 것을 이어받는다(첫 run이 들여쓰기 공백뿐인 경우가 있어 그대로 쓰면 서식이 틀어진다).
+    표(hp:tbl)를 품은 run은 건드리지 않는다 — 지우면 표가 사라진다."""
+    runs = [r for r in p.findall(q("run")) if r.find(f".//{q('tbl')}") is None]
+    if not runs:
+        return False
+    base = next((r for r in runs if "".join(r.itertext()).strip()), runs[0])
+    first = runs[0]
+    if base is not first and base.get("charPrIDRef"):
+        first.set("charPrIDRef", base.get("charPrIDRef"))
+    for r in runs[1:]:
+        p.remove(r)
+    for t in first.findall(q("t")):
+        first.remove(t)
+    tn = etree.SubElement(first, q("t"))
+    parts = text.split("\n")
+    tn.text = parts[0]
+    for seg in parts[1:]:
+        lb = etree.SubElement(tn, q("lineBreak"))
+        lb.tail = seg
+    return True
+
+
+def top_paragraphs(root):
+    """표(hp:tc) 안에 있지 않은 최상위 문단만 순서대로 반환."""
+    return [p for p in root.iter(q("p"))
+            if not any(a.tag == q("tc") for a in p.iterancestors())]
 
 
 def reflow_paragraphs(body):
