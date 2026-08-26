@@ -26,7 +26,7 @@ cd scripts
 python3 <필러> <빈양식.hwpx> <data.json> <출력.hwpx>
 ```
 
-세 가지 필러:
+필러 목록 — **①~④는 붙임 서류, ⑤는 그 붙임을 보내는 공문**이다:
 
 | 서류 | 스크립트 | 빈양식 |
 |---|---|---|
@@ -35,7 +35,7 @@ python3 <필러> <빈양식.hwpx> <data.json> <출력.hwpx>
 | 자체해결·종결 결과 보고서(통합) | `fill_result.py` | `../assets/templates/자체해결종결_빈양식.hwpx` |
 | 자체해결 동의서(피해측 서명) | `fill_donguiseo.py` (종류:"자체해결") | `../assets/templates/자체해결동의서_빈양식.hwpx` |
 | 종결 동의서(피해측 서명) | `fill_donguiseo.py` (종류:"종결") | `../assets/templates/종결동의서_빈양식.hwpx` |
-| **공문(기안문) 6종** | `fill_gongmun.py` (종류 6가지) | `../assets/templates/공문_빈양식.hwpx` |
+| **공문(기안문) 6종** | `fill_gongmun.py` (종류 8가지) | `../assets/templates/공문_빈양식.hwpx` |
 
 > 스크립트는 `hwpx_lib.py`를 import하므로 **`scripts/` 폴더 안에서 실행**하거나 `PYTHONPATH`에 포함해야 한다.
 
@@ -130,6 +130,7 @@ python3 fill_jeondamgigu.py ../assets/templates/전담기구심의_빈양식.hwp
 ```
 - `mode`: `"자체해결"` 또는 `"종결"`.
 - `오인신고항목`은 `mode="종결"`일 때만 의미 있음 (학폭 아님 종결 사유 1/2/3).
+- `mode:"종결"`이면 양식 제목·말미의 `학교장 자체해결 결과 …`가 **`학교장 종결 결과 …`로 자동 치환**된다(체크 선택지 `학교폭력 자체해결 사안 ( )`은 선택지라 그대로 남는다).
 
 ```bash
 python3 fill_result.py ../assets/templates/자체해결종결_빈양식.hwpx data.json 결과_출력.hwpx

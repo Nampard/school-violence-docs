@@ -21,7 +21,9 @@
 4. **학교장 자체해결 / 종결 동의서** (피해관련 학생·보호자 서명용)
 
 **공문(기안문) 6종** — 위 붙임을 보내는 결재·발송 문서
-5. 사안접수 보고 · 전담기구 심의 **개최** · 전담기구 심의 **결과 보고** · 자체해결(종결) 결과 보고 **[내부결재]** · 자체해결 결과 보고 **[교육지원청]** · **심의위원회 개최 요청**
+5. 사안접수 보고 · 전담기구 심의 **개최** · 전담기구 심의 **결과 보고** · 자체해결(종결) 결과 보고 **[내부결재]** · 자체해결(종결) 결과 보고 **[교육지원청]** · **심의위원회 개최 요청**
+
+> 결과 보고 공문 2종은 **자체해결용·종결용 문구가 따로** 제공되어(`자체해결내부`/`자체해결청`/`종결내부`/`종결청`) 실제로는 8가지 종류입니다. 종결 사안에 "자체해결"이라는 제목이 남지 않습니다.
 
 ### 두 가지 흐름
 - **흐름 ① — 사안접수**: 사안 정황을 입력하면 사안접수 보고서를 생성.
@@ -30,7 +32,7 @@
   - **종결** (학교폭력 아님·오인신고 등) → 전담기구 보고 + 종결 결과 보고 + **종결 동의서**(피해측 서명)
   - **심의위 이송** (요건 미충족 또는 동의 미제출) → 전담기구 보고 + 심의위원회 개최 요청
 
-각 단계에는 붙임을 보내는 **공문(기안문)** 이 함께 생성된다 — 사안접수 보고 / 전담기구 심의 개최·결과 보고 / 자체해결(종결) 결과 보고(내부결재·교육지원청) / 심의위원회 개최 요청 6종. hwpx 파일과 **NEIS 복붙용 텍스트**를 함께 뽑아 준다.
+각 단계에는 붙임을 보내는 **공문(기안문)** 이 함께 생성됩니다. 분기와 무관하게 `개최`·`결과` 공문을 만들고, 자체해결이면 `자체해결내부`+`자체해결청`, 종결이면 `종결내부`+`종결청`, 심의위 이송이면 `심의위`(개최 요청)를 더합니다. **hwpx 파일과 NEIS 복붙용 텍스트를 함께** 출력하므로, 나이스 기안창에 그대로 붙여넣을 수 있습니다.
 
 ### 핵심 원칙
 - **빈칸 원칙**: 모르거나 불확실한 값은 추측하지 않고 빈칸으로 둔다(한글에서 직접 채움). 법적 분류(피해유형·자체해결 요건 등)는 지시가 있을 때만 채운다.
@@ -79,9 +81,11 @@ Codex는 `.skill` 자동 트리거를 지원하지 않습니다. 대신 **`skill
 
 ```bash
 cd school-violence-docs/skills/school-violence-docs/scripts
-python3 fill_jeopsu.py      ../assets/templates/사안접수_빈양식.hwpx       data.json  out.hwpx
-python3 fill_jeondamgigu.py ../assets/templates/전담기구심의_빈양식.hwpx   data.json  out.hwpx
-python3 fill_result.py      ../assets/templates/자체해결종결_빈양식.hwpx   data.json  out.hwpx
+python3 fill_jeopsu.py      ../assets/templates/사안접수_빈양식.hwpx        data.json  out.hwpx
+python3 fill_jeondamgigu.py ../assets/templates/전담기구심의_빈양식.hwpx    data.json  out.hwpx
+python3 fill_result.py      ../assets/templates/자체해결종결_빈양식.hwpx    data.json  out.hwpx
+python3 fill_donguiseo.py   ../assets/templates/자체해결동의서_빈양식.hwpx  data.json  out.hwpx
+python3 fill_gongmun.py     ../assets/templates/공문_빈양식.hwpx           data.json  out.hwpx
 ```
 
 `data.json` 스키마·예시는 [skills/school-violence-docs/README.md](skills/school-violence-docs/README.md)를 참고하세요.
@@ -100,7 +104,13 @@ school-violence-docs/
     ├── SKILL.md                    ← 스킬 본문(자동 트리거 규약)
     ├── README.md                   ← 직접 실행 가이드(Codex·터미널)
     ├── scripts/                    ← 채움 엔진(Python, lxml)
-    ├── assets/templates/           ← 빈 양식 hwpx 3종(충북교육청 기준)
+    │   ├── hwpx_lib.py             ← 셀·체크박스·행복제·재압축 코어
+    │   ├── fill_jeopsu.py          ← 사안접수 보고서
+    │   ├── fill_jeondamgigu.py     ← 전담기구 심의결과 보고서
+    │   ├── fill_result.py          ← 자체해결·종결 결과 보고서
+    │   ├── fill_donguiseo.py       ← 자체해결/종결 동의서
+    │   └── fill_gongmun.py         ← 공문(기안문) 6종 + NEIS 텍스트
+    ├── assets/templates/           ← 빈 양식 hwpx 6종(충북교육청 기준)
     └── references/                 ← 필드·셀 매핑, 업무흐름
 ```
 
