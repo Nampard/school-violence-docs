@@ -155,6 +155,9 @@ def apply_school(body, d):
     'OO고'가 'OO고등학교'의 접두라, 정식명(긴 것)을 먼저 치환하고 약칭은 '등학교'가 뒤따르지 않을 때만 치환."""
     if d.get("학교명"):
         body = body.replace("OO고등학교", d["학교명"])
+        # 종결 동의서의 'OO학교장 귀중'처럼 학교급을 안 박은 범용 표기도 처리한다.
+        # 위에서 'OO고등학교'를 먼저 바꿨으므로 여기 남는 건 순수 'OO학교'뿐이다.
+        body = body.replace("OO학교", d["학교명"])
     if d.get("학교약칭"):
         body = re.sub(r"OO고(?!등학교)", d["학교약칭"], body)
     return body

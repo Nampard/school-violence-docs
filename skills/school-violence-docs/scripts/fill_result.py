@@ -69,6 +69,11 @@ def main(template, data_path, out_path):
         print(f"⚠️ '사안조사내용'이 {len(d['사안조사내용'])}자로 500자 미만 — 사실관계를 더 확인해 보강 권장")
 
     body = H.replace_text(tree, repls).decode("utf-8")
+    if mode == "종결":
+        # 양식은 자체해결·종결 통합본이라 제목·말미가 '학교장 자체해결 …'로 되어 있다.
+        # 종결 사안에 그대로 두면 어색하므로 그 두 곳만 바꾼다.
+        # 체크 선택지 라벨 '학교폭력 자체해결 사안 ( )'은 '학교장'으로 시작하지 않아 건드려지지 않는다.
+        body = body.replace("학교장 자체해결", "학교장 종결")
     body = H.apply_school(body, d)
     body = H.reflow_paragraphs(body)   # 캐시된 줄 레이아웃 제거 → 글자 겹침 방지
     H.write_section(sec, body.encode("utf-8"))
